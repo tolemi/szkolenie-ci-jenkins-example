@@ -1,31 +1,38 @@
 pipeline {
     agent any
-
-    tools {
-        // Install the Maven version configured as "M3" and add it to the path.
-        maven "maven-3"
-        jdk "jdk-17"
+   tools {
+        maven 'maven-3'
     }
-
     stages {
+        stage('Clean') {
+            steps {
+               cleanWs()
+            }
+        }
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/spring-projects/spring-petclinic'
+            }
+        }
         stage('Build') {
             steps {
-                // Get some code from a GitHub repository
-                git url: 'https://github.com/rechandler12/szkolenie-ci-jenkins-example.git', branch: 'main'
-
-                // Run Maven on a Unix agent.
-                sh "mvn clean spring-boot:build-image"
+                sh 'mvn clean verify'
             }
         }
     }
     
     post {
-        // If Maven was able to run the tests, even if some of the test
-        // failed, record the test results and archive the jar file.
         success {
-            junit '**/target/surefire-reports/TEST-*.xml'
-            archiveArtifacts 'target/*.jar'
-            slackSend color: "good", message: "Message from Jenkins Pipeline"
+            slackSend color: "good", message: "Pipeline pet-clinic-build succed - tag: ${env.BUILD_TAG}, url: ${env.BUILD_URL}"
+        }
+        unstable {
+            slackSend color: "warning", message: "Pipeline pet-clinic-build unstable"
+        }
+        failure {
+            slackSend color: "danger", message: "Pipeline pet-clinic-build FAILURE"
+        }
+        always {
+            junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
         }
     }
 }
